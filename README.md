@@ -1,4 +1,4 @@
-# Next.js 13 Server-Side Authentication with PocketBase
+# Next.js 13 Authentication with PocketBase
 
 This document will teach you how to use PocketBase Authentication using Cookies with Next.js 13 app directory without any client components
 

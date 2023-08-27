@@ -141,7 +141,7 @@ export default function Page() {
 
 ## Middleware
 
-Now, to ensure that only authenticated users can access the `/dashboard` route, we'll create a middleware that checks if the user is logged in. If the user is not logged in, we redirect them to the login page.
+Now, to ensure that only authenticated users can access the `/dashboard` route, we'll create a [middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware) that checks if the user is logged in. If the user is not logged in, we redirect them to the login page.
 
 ```ts
 // ./middleware.ts
@@ -164,8 +164,6 @@ export function middleware(request: NextRequest) {
     }
   }
 }
-
-// Read more about Next.js middleware in: https://nextjs.org/docs/app/building-your-application/routing/middleware
 ```
 
 And that's it! now you have a fully functional authentication system with PocketBase and Next.js 13. No client components, no client-side javascript, blazingly fast. 🔥🚀

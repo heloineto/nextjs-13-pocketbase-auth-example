@@ -82,7 +82,6 @@ For the form, create a very simple page with a login form. Pass the `login` serv
 // ./app/page.tsx
 
 import { login } from './actions';
-import classes from './page.module.css';
 
 export default function Page() {
   return (
@@ -140,6 +139,8 @@ export default function Page() {
 }
 ```
 
+## Middleware
+
 Now, to ensure that only authenticated users can access the `/dashboard` route, we'll create a middleware that checks if the user is logged in. If the user is not logged in, we redirect them to the login page.
 
 ```ts
@@ -167,4 +168,4 @@ export function middleware(request: NextRequest) {
 // Read more about Next.js middleware in: https://nextjs.org/docs/app/building-your-application/routing/middleware
 ```
 
-And that's it! now you have a fully functional authentication system with PocketBase and Next.js 13. No client components, no client-side javascript, blazingly fast.
+And that's it! now you have a fully functional authentication system with PocketBase and Next.js 13. No client components, no client-side javascript, blazingly fast. 🔥🚀

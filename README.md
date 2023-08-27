@@ -1,34 +1,172 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Next.js 13 Server-Side Authentication with PocketBase
 
-## Getting Started
+This document will teach you how to use PocketBase Authentication using Cookies with Next.js 13 app directory without any client components
 
-First, run the development server:
+
+## Next.js Setup
+
+If you haven't already, create a new Next.js using the official docs: https://nextjs.org/docs/getting-started/installation
+
+As of 08/27/2023, server actions are a experimental feature, so you'll need to enable it by adding the following to your `next.config.js` file:
+
+```js
+// ./next.config.js
+
+module.exports = {
+  // ...
+  experimental: {
+    serverActions: true,
+  },
+};
+```
+## PocketBase Setup
+
+Install PocketBase following the official docs: https://pocketbase.io/docs/.
+
+Run your pocketbase instance and create a environment variable called `POCKETBASE_URL` with your PocketBase URL.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+# ./.env.development
+
+POCKETBASE_URL=http://127.0.0.1:8090
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Notice that we don't have to prefix the environment variable with `NEXT_PUBLIC_`. This is because we do everything in the server and never expose the PocketBase URL to the client. Feels good.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Login flow
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+To handle the login on the server we create a [server action](https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#how-server-actions-work) to handle the form submission. We also create a logout server action to handle the logout.
 
-## Learn More
+```ts
+// ./app/actions.ts
 
-To learn more about Next.js, take a look at the following resources:
+'use server';
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+'use server';
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+import { redirect } from 'next/navigation';
+import PocketBase from 'pocketbase';
+import { cookies } from 'next/headers';
 
-## Deploy on Vercel
+export async function login(formData: FormData) {
+  const email = formData.get('email') as string;
+  const password = formData.get('password') as string;
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+  // TODO: server-side validation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+  const pb = new PocketBase(process.env.POCKETBASE_URL);
+
+  const { token, record: model } = await pb
+    .collection('users')
+    .authWithPassword(email, password);
+
+  const cookie = JSON.stringify({ token, model });
+
+  cookies().set('pb_auth', cookie, {
+    secure: true,
+    path: '/',
+    sameSite: 'strict',
+    httpOnly: true,
+  });
+
+  redirect('/dashboard');
+}
+
+export async function logout() {
+  cookies().delete('pb_auth');
+  redirect('/');
+}
+```
+
+For the form, create a very simple page with a login form. Pass the `login` server action to the form's `action` prop.
+
+```tsx
+// ./app/page.tsx
+
+import { login } from './actions';
+import classes from './page.module.css';
+
+export default function Page() {
+  return (
+    <main className={classes.main}>
+      Login form
+      <form className={classes.form} action={login}>
+        <label className={classes.label}>
+          E-mail
+          <input name="email" type="email" />
+        </label>
+        <label className={classes.label}>
+          Password
+          <input name="password" type="password" />
+        </label>
+        <button type="submit">Login</button>
+      </form>
+    </main>
+  );
+}
+```
+
+## Private routes
+
+Now we'll create a private route called `/dashboard`. Only authenticated users should be able to access this route.
+
+We will also add a form with a single button for the user to logout. Passing the `logout` server action to the form's `action` prop.
+
+Notice that we can also get the user's model from the cookie and display it on the page.
+
+```tsx
+// ./app/dashboard.tsx
+
+import { cookies } from 'next/headers';
+import { logout } from '../actions';
+
+export default function Page() {
+  const cookie = cookies().get('pb_auth');
+
+  // This never happens because of the middleware,
+  // but we must make typescript happy
+  if (!cookie) throw new Error('Not logged in');
+
+  const { model } = JSON.parse(cookie.value);
+
+  return (
+    <main>
+      <p>This is the dashboard. Only logged-in users can view this route</p>
+      <p>Logged-in user: </p>
+      <pre>{JSON.stringify(model, null, 2)}</pre>
+      <form action={logout}>
+        <button type="submit">logout</button>
+      </form>
+    </main>
+  );
+}
+```
+
+Now, to ensure that only authenticated users can access the `/dashboard` route, we'll create a middleware that checks if the user is logged in. If the user is not logged in, we redirect them to the login page.
+
+```ts
+// ./middleware.ts
+
+import { NextRequest, NextResponse } from 'next/server';
+import { isTokenExpired } from 'pocketbase';
+
+export function middleware(request: NextRequest) {
+  // You can also export a `config.matcher` array,
+  // but i believe this way is more straightforward and scalable.
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    const authCookie = request.cookies.get('pb_auth');
+    const token = authCookie?.value ? JSON.parse(authCookie.value).token : null;
+
+    // If there's no token or it's expired, redirect to login page.
+    if (!token || isTokenExpired(token)) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
+  }
+}
+
+// Read more about Next.js middleware in: https://nextjs.org/docs/app/building-your-application/routing/middleware
+```
+
+And that's it! now you have a fully functional authentication system with PocketBase and Next.js 13. No client components, no client-side javascript, blazingly fast.

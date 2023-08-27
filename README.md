@@ -31,7 +31,7 @@ Run your pocketbase instance and create a environment variable called `POCKETBAS
 POCKETBASE_URL=http://127.0.0.1:8090
 ```
 
-Notice that we don't have to prefix the environment variable with `NEXT_PUBLIC_`. This is because we do everything in the server and never expose the PocketBase URL to the client. Feels good.
+Notice that we don't have to prefix the environment variable with `NEXT_PUBLIC_`. This is because we do everything in the server and we never expose the PocketBase URL to the client. Feels good.
 
 ## Login flow
 
@@ -39,8 +39,6 @@ To handle the login on the server we create a [server action](https://nextjs.org
 
 ```ts
 // ./app/actions.ts
-
-'use server';
 
 'use server';
 
@@ -88,14 +86,14 @@ import classes from './page.module.css';
 
 export default function Page() {
   return (
-    <main className={classes.main}>
+    <main>
       Login form
-      <form className={classes.form} action={login}>
-        <label className={classes.label}>
+      <form action={login}>
+        <label>
           E-mail
           <input name="email" type="email" />
         </label>
-        <label className={classes.label}>
+        <label>
           Password
           <input name="password" type="password" />
         </label>
